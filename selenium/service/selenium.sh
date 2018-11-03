@@ -1,10 +1,10 @@
 #!/bin/bash  
                                                                                                                                                                                                                    
-DESC="Selenium Grid Server"
+DESC="Selenium Grid Server Service"
 RUN_AS="selenium"
 JAVA_BIN="/usr/bin/java"
 
-SELENIUM_DIR="/Data01/selenium"
+SELENIUM_DIR="/opt/selenium"
 PID_FILE="$SELENIUM_DIR/selenium-grid.pid"
 JAR_FILE="$SELENIUM_DIR/selenium-server.jar"
 LOG_DIR="/var/log/selenium"
@@ -12,12 +12,6 @@ LOG_FILE="${LOG_DIR}/selenium-grid.log"
 
 USER="selenium"
 GROUP="selenium"
-
-MAX_MEMORY="-Xmx256m"
-STACK_SIZE="-Xss8m"
-
-DAEMON_OPTS=" $MAX_MEMORY $STACK_SIZE -jar $JAR_FILE -role hub -log $LOG_FILE"
-
 NAME="selenium"
 
 if [ "$1" != status ]; then
@@ -38,7 +32,7 @@ case "$1" in
         echo -n "Starting $DESC: "
          
         if [ ! -f $PID_FILE ] ; then
-            nohup java -jar $JAR_FILE -role hub & >> selenium.log 2>&1&
+            nohup java -jar $JAR_FILE -role hub -log $LOG_FILE & >> selenium.log 2>&1&
             
             echo $(netstat -ltnp | grep -w ':4444' | cut -d '/' -f 1 | awk '{ print $7 }') > $PID_FILE
             echo "Process started"
@@ -62,14 +56,18 @@ case "$1" in
 
     restart|force-reload)
         echo -n "Restarting $DESC: "
-        start-stop-daemon --stop --pidfile $PID_FILE
-        sleep 1
-        start-stop-daemon -c $RUN_AS --start --background --pidfile $PID_FILE  --make-pidfile --exec $JAVA_BIN -- $DAEMON_OPTS
-        echo "$NAME."
+        PID=$(netstat -ltnp | grep -w ':4444' | cut -d '/' -f 1 | awk '{ print $7 }');
+        echo "Killing process $PID"
+        kill $PID;
+        rm $PID_FILE
+        nohup java -jar $JAR_FILE -role hub -log $LOG_FILE & >> selenium.log 2>&1&
+        echo $(netstat -ltnp | grep -w ':4444' | cut -d '/' -f 1 | awk '{ print $7 }') > $PID_FILE
+        echo "Process restarted"
         ;;
 
     status)
-        status_of_proc -p "$PID_FILE" "$DAEMON" "selenium" && exit 0 || exit $?
+        PID=$(netstat -ltnp | grep -w ':4444' | cut -d '/' -f 1 | awk '{ print $7 }');
+        ps -p "$PID"
         ;;
 
     *)
